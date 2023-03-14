@@ -66,7 +66,9 @@ struct gpsout{
   int fixq;
   int lat;
   int lon;
-}
+};
+
+gpsout outss;
 // Connect to the GPS on the hardware port
 Adafruit_GPS GPS(&GPSSerial);
 
@@ -284,7 +286,6 @@ void BNO_collect(bool enable){
 void GPS_collect(bool enable, bool power){
   if(enable == 1){
     //float outs[3];
-    gpsout outss;
     if(power == 1){
       outss.set = 1;
       if(GPS.fix){
