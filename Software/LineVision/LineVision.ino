@@ -345,27 +345,34 @@ void DATA_output(bool enable){
   //This funciton needs to package all of the data from sensors and put it onto the p_out serial port. 
 }
 
+
+
 /**
  * @brief Function to check the status of the charger
+ * 
+ * bool exPGood;
+ * bool exChg; 
+ * POW_watchdog (&exPGOOD, &exChg); 
  * 
  */
 
 int pGoodThresh = 1024; //change variable when I figure out what it needs to be 
 int chgThresh = 1024; //change variable when I figure out what it needs to be
-void POW_watchdog(void){
+void POW_watchdog(bool *pGoodOut, bool *chgOut){
 
   if (analogRead(PGOOD) < pGoodThresh ){ 
-    bool pGoodOut = true; 
+    *pGoodOut = true; 
   }
   else{
-    bool pGoodOut = false; 
+    *pGoodOut = false; 
   }
 
   if (analogRead(CHG) < chgThresh ){ 
-    bool chgOut = true;  
+    *chgOut = true;  
   }
   else {
-    bool chgOut = false; 
+    *chgOut = false; 
   }
+
 
 }
