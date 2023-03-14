@@ -137,12 +137,12 @@ void setup(void){
 
   //setup the ADC for ADXL
   analogReadResolution(ADC_bits);
-  //setup i2c for AHT
-  if(!aht.begin() && AHT_EN){
+
+  if(!aht.begin() && AHT_EN){ //configure the AHT sensor over i2c
     p_out.print("Could not find AHT20");
   }
 
-  if(!bno.begin() && BNO_EN){
+  if(!bno.begin() && BNO_EN){ //configure thge BNO sensor over i2c
     p_out.print("Could not find BNO");
     while(1){}
   }
@@ -166,7 +166,7 @@ void loop(){
   ADXL_collect(ADXL_EN);
   AHT_collect(AHT_EN);
   BNO_collect(BNO_EN);
-  GPS_collect(GPS_EN, /*Need to add the boolean for powering gps based on time*/);
+  GPS_collect(GPS_EN,placeholder);
   
   digitalWrite(5, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(1000);                       // wait for a second
@@ -274,7 +274,7 @@ void BNO_collect(bool enable){
  * @brief GPS_collect function for parsing GPS data
  * 
  */
-void GPS_collect(bool enable, bool now){
+void GPS_collect(bool enable, bool power){
       // read data from the GPS in the 'main loop'
   char c = GPS.read();
   // if you want to debug, this is a good time to do it!
