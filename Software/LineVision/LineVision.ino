@@ -108,7 +108,7 @@ void BNO_collect(bool enable, bool power); //collect orientation data from the B
 
 void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
 
-void POW_watchdog(void); //this will check the status of the charge controller. 
+void POW_watchdog(bool* power_good, bool* charge_good); //this will check the status of the charge controller. 
 
 #define AHT_EN true
 #define BNO_EN true
@@ -122,8 +122,8 @@ bool bno_power = true;
 bool xbee_power = true;
 
 //Power data pins 
-#define PGOOD xx //to have an integer pin number
-#define CHG xx
+#define PGOOD 19 //to have an integer pin number
+#define CHG 18
 
 //Power mos pins
 #define GPS_MOS 7
@@ -196,7 +196,7 @@ void loop(){
     ADXL_collect(ADXL_EN);
     AHT_collect(AHT_EN);
     BNO_collect(BNO_EN, bno_power);
-    GPS_collect(GPS_EN, gps_power)
+    GPS_collect(GPS_EN, gps_power);
   }
   else if(in == "SETUP"){
 
@@ -384,6 +384,6 @@ void DATA_output(bool enable){
  * @brief Function to check the status of the charger
  * 
  */
-void POW_watchdog(void){
+void POW_watchdog(bool* power_good, bool* charge_good){
 
 }
