@@ -108,11 +108,14 @@ void BNO_collect(bool enable); //collect orientation data from the BNO055 sensor
 
 void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
 
+void POW_watchdog(void); 
 
 #define AHT_EN true
 #define BNO_EN true
 #define GPS_EN true
 #define ADXL_EN true
+#define PGOOD XX 
+#define CHG XX
 
 //mos control
 bool gps_power = true;
