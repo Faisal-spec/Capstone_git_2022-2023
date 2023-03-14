@@ -108,6 +108,8 @@ void BNO_collect(bool enable); //collect orientation data from the BNO055 sensor
 
 void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
 
+void POW_watchdog(void); //this will watch the two output from the charge controller. 
+
 
 #define AHT_EN true
 #define BNO_EN true
@@ -118,6 +120,10 @@ void DATA_output(bool enable); //this function will output all packaged data ove
 bool gps_power = true;
 bool bno_power = true;
 bool xbee_power = true;
+
+//power watchdog
+#define PGOOD xx //pins to be populated later
+#define CHG XX
 
 
 
@@ -172,7 +178,7 @@ void loop(){
   ADXL_collect(ADXL_EN);
   AHT_collect(AHT_EN);
   BNO_collect(BNO_EN);
-  GPS_collect(GPS_EN,placeholder);
+  GPS_collect(GPS_EN,gps_power);
   
   digitalWrite(5, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(1000);                       // wait for a second
