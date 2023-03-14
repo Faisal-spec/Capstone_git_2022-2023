@@ -68,6 +68,13 @@ struct gpsout{
   int lonn;
 };
 
+struct Ori_1{
+  float head;
+  float xpo;
+  float ypo;
+  float speed; 
+};
+Ori_1 bbo;
 gpsout outss;
 // Connect to the GPS on the hardware port
 Adafruit_GPS GPS(&GPSSerial);
@@ -296,8 +303,13 @@ void BNO_collect(bool enable){
 
   // velocity of sensor in the direction it's facing
   headingVel = ACCEL_VEL_TRANSITION * linearAccelData.acceleration.x / cos(DEG_2_RAD * orientationData.orientation.x);
+  //populating struct phase
+  bbo.head = orientationData.orientation.x; //populate struct with heading
+  bbo.speed = headingVel; //populate struct with speed
+  bbo.xpo = xPos; //populate struct with xPosition
+  bbo.ypo = yPos; //populate struct with yPosition
 
-  if (printCount * BNO055_SAMPLERATE_DELAY_MS >= PRINT_DELAY_MS) {
+ /* if (printCount * BNO055_SAMPLERATE_DELAY_MS >= PRINT_DELAY_MS) {
     //enough iterations have passed that we can print the latest data
     p_out.print("Heading: ");
     p_out.println(orientationData.orientation.x);
@@ -313,14 +325,14 @@ void BNO_collect(bool enable){
   }
   else {
     printCount = printCount + 1;
-  }
-
+  }*/
 
 
   while ((micros() - tStart) < (BNO055_SAMPLERATE_DELAY_MS * 1000))
   {
     //poll until the next sample is ready
   }
+  return bbo; //i am assuming we are returing the struct to print later.
 }
 
 /**
