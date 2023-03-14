@@ -62,10 +62,10 @@
 
 struct gpsout{
   int set;
-  int fix;
+  int fixx;
   int fixq;
-  int lat;
-  int lon;
+  int latt;
+  int lonn;
 };
 
 gpsout outss;
@@ -190,14 +190,46 @@ void loop(){
  * @param r_humid 
  * @return int 
  */
-int AHT_collect(bool enable, float * r_temp, float * r_humid){
+int AHT_collect(bool enable){
     long start = micros();
+    int tempp[4];
+    int hum[4];
+    float temp_1;
+    float hum_1;
+    ///
     sensors_event_t humidity, temp;
     bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    *r_temp = temp.temperature;
-    *r_humid = humidity.relative_humidity;
+    tempp[0] = temp.temperature;
+    hum[0] = humidity.relative_humidity;
+    ///
+    delay(500);
+    sensors_event_t humidity, temp;
+    bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    tempp[1] = temp.temperature;
+    hum[1] = humidity.relative_humidity;
+    ///
+    delay(500);
+    sensors_event_t humidity, temp;
+    bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    tempp[2] = temp.temperature;
+    hum[2] = humidity.relative_humidity;
+    ///
+    delay(500);
+    sensors_event_t humidity, temp;
+    bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    tempp[3] = temp.temperature;
+    hum[3] = humidity.relative_humidity;
+    ///
+    delay(500);
+    sensors_event_t humidity, temp;
+    bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    tempp[4] = temp.temperature;
+    hum[4] = humidity.relative_humidity;
+    ///
+    temp_1 = (tempp[0]+tempp[1]+tempp[2]+tempp[3]+tempp[4])/5;
+    hum_1 = (hum[0]+hum[1]+hum[2]+hum[3]+hum[4])/5 
     long end = micros();
-    return end - start;
+    return temp_1,hum_1;
 }
 
 /**
@@ -293,10 +325,10 @@ void GPS_collect(bool enable, bool power){
         //outs[1] = GPS.fixquality;
         //outs[2] = GPS.latitudeDegrees;
         //outs[3] = GPS.longitudeDegrees;
-        outss.fix = GPS.fix;
+        outss.fixx = GPS.fix;
         outss.fixq = GPS.fixquality;
-        outss.lat = GPS.latitudeDegrees;
-        outss.lon = GPS.longitudeDegrees;
+        outss.latt = GPS.latitudeDegrees;
+        outss.lonn = GPS.longitudeDegrees;
       }
       return outss;
     }
