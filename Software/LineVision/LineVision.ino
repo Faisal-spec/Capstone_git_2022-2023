@@ -192,42 +192,54 @@ void loop(){
  */
 int AHT_collect(bool enable){
     long start = micros();
-    int tempp[4];
-    int hum[4];
-    float temp_1;
-    float hum_1;
+    //int tempp[4];
+    //int hum[4];
+    float temp_1 = 0;
+    float hum_1 = 0;
     ///
     sensors_event_t humidity, temp;
     bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    tempp[0] = temp.temperature;  //populate tempp with the current temperature data
-    hum[0] = humidity.relative_humidity; //populate humidity with the current data
+    //tempp[0] = temp.temperature;  //populate tempp with the current temperature data
+    //hum[0] = humidity.relative_humidity; //populate humidity with the current data
+    temp_1 = temp_1 + temp.temperature;
+    hum_1 = hum_1 + humidity.relative_humidity;
     ///
     delay(500);
     //sensors_event_t humidity, temp;
     ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    tempp[1] = temp.temperature;
-    hum[1] = humidity.relative_humidity;
+    //tempp[1] = temp.temperature;
+    //hum[1] = humidity.relative_humidity;
+    temp_1 = temp_1 + temp.temperature;
+    hum_1 = hum_1 + humidity.relative_humidity;
     ///
     delay(500);
     //sensors_event_t humidity, temp;
     ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    tempp[2] = temp.temperature;
-    hum[2] = humidity.relative_humidity;
+    //tempp[2] = temp.temperature;
+    //hum[2] = humidity.relative_humidity;
+    temp_1 = temp_1 + temp.temperature;
+    hum_1 = hum_1 + humidity.relative_humidity;
     ///
     delay(500);
     //sensors_event_t humidity, temp;
     ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    tempp[3] = temp.temperature;
-    hum[3] = humidity.relative_humidity;
+    //tempp[3] = temp.temperature;
+    //hum[3] = humidity.relative_humidity;
+    temp_1 = temp_1 + temp.temperature;
+    hum_1 = hum_1 + humidity.relative_humidity;
     ///
     delay(500);
     //sensors_event_t humidity, temp;
     ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    tempp[4] = temp.temperature;
-    hum[4] = humidity.relative_humidity;
+    //tempp[4] = temp.temperature;
+    //hum[4] = humidity.relative_humidity;
+    temp_1 = temp_1 + temp.temperature;
+    hum_1 = hum_1 + humidity.relative_humidity;
     ///
-    temp_1 = (tempp[0]+tempp[1]+tempp[2]+tempp[3]+tempp[4])/5;
-    hum_1 = (hum[0]+hum[1]+hum[2]+hum[3]+hum[4])/5; 
+    //temp_1 = (tempp[0]+tempp[1]+tempp[2]+tempp[3]+tempp[4])/5;
+    //hum_1 = (hum[0]+hum[1]+hum[2]+hum[3]+hum[4])/5;
+    temp_1 = temp_1/5 ;
+    hum_1 = hum_1/5 ; 
     long end = micros();
     return temp_1,hum_1;
 }
