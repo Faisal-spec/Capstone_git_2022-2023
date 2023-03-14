@@ -113,7 +113,7 @@ void DATA_output(bool enable); //this function will output all packaged data ove
 #define BNO_EN true
 #define GPS_EN true
 #define ADXL_EN true
-\
+
 //mos control
 bool gps_power = true;
 bool bno_power = true;
@@ -340,8 +340,6 @@ void GPS_collect(bool enable, bool now){
  */
 void DATA_output(bool enable){
   //This funciton needs to package all of the data from sensors and put it onto the p_out serial port. 
-<<<<<<< Updated upstream
-=======
 }
 
 /**
@@ -350,10 +348,14 @@ void DATA_output(bool enable){
  */
 void POW_watchdog(void){
 
-  int pGoodOut = digitalRead(PGOOD); 
-  int chgOut = digitalRead(CHG); 
+  int pGoodOut = analogRead(PGOOD); 
+  int chgOut = analogRead(CHG); 
 
-  
+  p_out.print("PGOOD = ");
+  p_out.print(pGoodOut);
+  p_out.print(", ");
 
->>>>>>> Stashed changes
+  p_out.print("Charge = "); 
+  p_out.print(chgOut); 
+  delay(300000);
 }
