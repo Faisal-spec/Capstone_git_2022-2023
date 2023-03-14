@@ -195,7 +195,7 @@ void loop(){
   if(in == ""){ //this is the main loop that will run most of the time. 
     ADXL_collect(ADXL_EN);
     AHT_collect(AHT_EN);
-    BNO_collect(BNO_EN, bno_power);
+    //BNO_collect(BNO_EN, bno_power);
     GPS_collect(GPS_EN, gps_power);
   }
   else if(in == "SETUP"){
