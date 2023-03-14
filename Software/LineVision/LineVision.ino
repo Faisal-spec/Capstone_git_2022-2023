@@ -172,7 +172,7 @@ void loop(){
   ADXL_collect(ADXL_EN);
   AHT_collect(AHT_EN);
   BNO_collect(BNO_EN);
-  GPS_collect(GPS_EN, /*Need to add the boolean for powering gps based on time*/);
+  //GPS_collect(GPS_EN, /*Need to add the boolean for powering gps based on time*/);
   
   digitalWrite(5, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(1000);                       // wait for a second
@@ -187,12 +187,12 @@ void loop(){
  * @param r_humid 
  * @return int 
  */
-int AHT_collect(bool enable, float * r_temp, float * r_humid){
+int AHT_collect(bool enable){
     long start = micros();
     sensors_event_t humidity, temp;
     bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    *r_temp = temp.temperature;
-    *r_humid = humidity.relative_humidity;
+    //*r_temp = temp.temperature;
+    //*r_humid = humidity.relative_humidity;
     long end = micros();
     return end - start;
 }
@@ -331,6 +331,8 @@ void GPS_collect(bool enable, bool now){
     }
   }
 }
+
+
 
 /**
  * @brief Function to print all data out over the XBEE radio
