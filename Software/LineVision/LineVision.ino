@@ -113,6 +113,12 @@ void DATA_output(bool enable); //this function will output all packaged data ove
 #define BNO_EN true
 #define GPS_EN true
 #define ADXL_EN true
+\
+//mos control
+bool gps_power = true;
+bool bno_power = true;
+bool xbee_power = true;
+
 
 
 /**
