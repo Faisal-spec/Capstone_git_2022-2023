@@ -98,10 +98,17 @@ float mg_mv = 1 / .553; //mG per step in the 12 bits
 q15_t mag_data[N_samples];
 
 //functions
-int ADXL_collect(void);
-int Get_temp(float * r_temp, float * r_humid);
-void GPS_collect(void);
-void ADXL_print(void);
+int ADXL_collect(void); //Collect data from the ADXL and run fft
+
+int AHT_collect(float * r_temp, float * r_humid); //Collect data from the AHT 
+
+void GPS_collect(bool now); //collect data from the gps, have a tag that says if gps is running or not. Once per day.
+
+void BNO_collect(void); //collect orientation data from the BNO055 sensor 
+
+void DATA_output(void); //this function will output all packaged data over the raadio (p-out)
+
+
 
 
 
