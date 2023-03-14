@@ -104,7 +104,7 @@ int AHT_collect(bool enable); //Collect data from the AHT
 
 void GPS_collect(bool enable, bool power); //collect data from the gps, have a tag that says if gps is running or not. Once per day.
 
-void BNO_collect(bool enable); //collect orientation data from the BNO055 sensor 
+void BNO_collect(bool enable, bool power); //collect orientation data from the BNO055 sensor 
 
 void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
 
@@ -114,6 +114,7 @@ void POW_watchdog(void); //this will check the status of the charge controller.
 #define BNO_EN true
 #define GPS_EN true
 #define ADXL_EN true
+#define XBEE_EN true
 
 //mos control
 bool gps_power = true;
@@ -123,6 +124,11 @@ bool xbee_power = true;
 //Power data pins 
 #define PGOOD xx //to have an integer pin number
 #define CHG xx
+
+//Power mos pins
+#define GPS_MOS 7
+#define BNO_MOS 8
+#define XBEE_MOS 6
 
 
 
@@ -135,7 +141,9 @@ void setup(void){
   #ifdef test 
       while(!p_out); //wait for usb connection
   #endif
-
+  if(XBEE_EN){
+    digitalWrite(XBEE_MOS, HIGH); //this will turn the XBEE on before initialization 
+  }
   if(GPS_EN){
     GPSSerial.begin(115200);
     GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
@@ -174,11 +182,36 @@ void setup(void){
  * 
  */
 void loop(){
+  //need to read if there is input over the radio, 
+  String in; //used for serial input
+  if (p_out.available()){
+    in = p_out.read(); //this will contain commands. 
+  }
+  else{
+    in = "";
+  }
+
+
+  if(in == ""){ //this is the main loop that will run most of the time. 
+    ADXL_collect(ADXL_EN);
+    AHT_collect(AHT_EN);
+    BNO_collect(BNO_EN, bno_power);
+    GPS_collect(GPS_EN, gps_power)
+  }
+  else if(in == "SETUP"){
+
+  }
+  else{
+    p_out.write("Critical exception");
+    while(1);
+  }
   ADXL_collect(ADXL_EN);
   AHT_collect(AHT_EN);
   BNO_collect(BNO_EN);
   //GPS_collect(GPS_EN, /*Need to add the boolean for powering gps based on time*/);
   
+
+
   digitalWrite(5, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(1000);                       // wait for a second
   digitalWrite(5, LOW);    // turn the LED off by making the voltage LOW
