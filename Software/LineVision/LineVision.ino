@@ -182,7 +182,7 @@ void loop(){
  * @param r_humid 
  * @return int 
  */
-int Get_temp(float * r_temp, float * r_humid){
+int AHT_collect(float * r_temp, float * r_humid){
     long start = micros();
     sensors_event_t humidity, temp;
     bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
@@ -224,26 +224,9 @@ int ADXL_collect(void){
   //     mag_data[i] = sqrt((ADXL_data[0][i])^2+(ADXL_data[1][i])^2+(ADXL_data[2][i])^2);
   // }
   ZeroFFT(mag_data, N_samples);
-  ADXL_print();
   return micros() - start;
 }
 
-/**
- * @brief 
- * 
- */
-void ADXL_print(void){
-  for(int i=0; i<N_samples/2; i++){
-    
-    //print the frequency
-    p_out.print(FFT_BIN(i, sample_rate, N_samples));
-    p_out.print(",");
-
-    //print the corresponding FFT output
-    p_out.println(mag_data[i]);
-  }
-  return;
-}
 
 /**
  * @brief 
@@ -287,38 +270,6 @@ void BNO_collect(void){
     //poll until the next sample is ready
   }
 }
-
-// void printEvent(sensors_event_t* event) { //adafruit function for BNO. Not sure if this will be helpful
-//   Serial.print(event->type);
-//   double x = -1000000, y = -1000000 , z = -1000000; //dumb values, easy to spot problem
-//   if (event->type == SENSOR_TYPE_ACCELEROMETER) {
-//     x = event->acceleration.x;
-//     y = event->acceleration.y;
-//     z = event->acceleration.z;
-//   }
-//   else if (event->type == SENSOR_TYPE_ORIENTATION) {
-//     x = event->orientation.x;
-//     y = event->orientation.y;
-//     z = event->orientation.z;
-//   }
-//   else if (event->type == SENSOR_TYPE_MAGNETIC_FIELD) {
-//     x = event->magnetic.x;
-//     y = event->magnetic.y;
-//     z = event->magnetic.z;
-//   }
-//   else if ((event->type == SENSOR_TYPE_GYROSCOPE) || (event->type == SENSOR_TYPE_ROTATION_VECTOR)) {
-//     x = event->gyro.x;
-//     y = event->gyro.y;
-//     z = event->gyro.z;
-//   }
-
-//   Serial.print(": x= ");
-//   Serial.print(x);
-//   Serial.print(" | y= ");
-//   Serial.print(y);
-//   Serial.print(" | z= ");
-//   Serial.println(z);
-// }
 
 /**
  * @brief GPS_collect function for parsing GPS data
