@@ -98,15 +98,15 @@ float mg_mv = 1 / .553; //mG per step in the 12 bits
 q15_t mag_data[N_samples];
 
 //functions
-int ADXL_collect(void); //Collect data from the ADXL and run fft
+int ADXL_collect(bool enable); //Collect data from the ADXL and run fft
 
-int AHT_collect(float * r_temp, float * r_humid); //Collect data from the AHT 
+int AHT_collect(bool enable); //Collect data from the AHT 
 
-void GPS_collect(bool now); //collect data from the gps, have a tag that says if gps is running or not. Once per day.
+void GPS_collect(bool enable, bool power); //collect data from the gps, have a tag that says if gps is running or not. Once per day.
 
-void BNO_collect(void); //collect orientation data from the BNO055 sensor 
+void BNO_collect(bool enable); //collect orientation data from the BNO055 sensor 
 
-void DATA_output(void); //this function will output all packaged data over the raadio (p-out)
+void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
 
 
 #define AHT_EN true
@@ -163,18 +163,10 @@ void setup(void){
  * 
  */
 void loop(){
-  // float * temp;
-  // float *humidity; //pointers for AHT output
-  // digitalWrite(5, HIGH);
-  // delay(15000);
-  // digitalWrite(5, LOW);
-  // int temp_succ = Get_temp(temp, humidity);
-  // String data = "Temp: " + String(*temp, 3) + " Humid: " + String(*humidity, 3);
-  // Serial.println();
-  // ADXL_collect();
-
-  // // //ADXL_print();
-  GPS_collect();
+  ADXL_collect(ADXL_EN);
+  AHT_collect(AHT_EN);
+  BNO_collect(BNO_EN);
+  GPS_collect(GPS_EN, /*Need to add the boolean for powering gps based on time*/);
   
   digitalWrite(5, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(1000);                       // wait for a second
@@ -189,7 +181,7 @@ void loop(){
  * @param r_humid 
  * @return int 
  */
-int AHT_collect(float * r_temp, float * r_humid){
+int AHT_collect(bool enable, float * r_temp, float * r_humid){
     long start = micros();
     sensors_event_t humidity, temp;
     bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
@@ -206,7 +198,7 @@ int AHT_collect(float * r_temp, float * r_humid){
  * @param sample_rate 
  * @return int 
  */
-int ADXL_collect(void){
+int ADXL_collect(bool enable){
   Serial.println("ADXL data");
   int start = micros(); //take start time for analysis
   int ref = 2048;
@@ -239,7 +231,7 @@ int ADXL_collect(void){
  * @brief 
  * 
  */
-void BNO_collect(void){
+void BNO_collect(bool enable){
   unsigned long tStart = micros();
   sensors_event_t orientationData , linearAccelData;
   bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
@@ -282,7 +274,7 @@ void BNO_collect(void){
  * @brief GPS_collect function for parsing GPS data
  * 
  */
-void GPS_collect(void){
+void GPS_collect(bool enable, bool now){
       // read data from the GPS in the 'main loop'
   char c = GPS.read();
   // if you want to debug, this is a good time to do it!
@@ -338,6 +330,6 @@ void GPS_collect(void){
  * @brief Function to print all data out over the XBEE radio
  * 
  */
-void DATA_output(void){
-
+void DATA_output(bool enable){
+  //This funciton needs to package all of the data from sensors and put it onto the p_out serial port. 
 }
