@@ -1,0 +1,6 @@
+{
+    "configuration": "float=default,config=disabled,clock=crystal_32k,timer=timer_732Hz,cpu=samd21e18a,bootloader=8kb,serial=two_uart,usb=cdc",
+    "board": "MattairTech_Arduino:samd:mattairtech_mt_d21e_revb",
+    "sketch": "Software\\LineVision\\LineVision.ino",
+    "programmer": "atmel_ice"
+}
