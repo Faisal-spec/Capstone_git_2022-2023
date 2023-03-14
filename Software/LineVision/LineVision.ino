@@ -109,7 +109,10 @@ void BNO_collect(void); //collect orientation data from the BNO055 sensor
 void DATA_output(void); //this function will output all packaged data over the raadio (p-out)
 
 
-
+#define AHT_EN true
+#define BNO_EN true
+#define GPS_EN true
+#define ADXL_EN true
 
 
 /**
@@ -117,32 +120,36 @@ void DATA_output(void); //this function will output all packaged data over the r
  * Code to setup all the sensors and communication devices
  */
 void setup(void){
-    Serial.begin(115200); //Start USB communication
-    #ifdef test 
-        while(!p_out); //wait for usb connection
-    #endif
+  Serial.begin(115200); //Start USB communication
+  #ifdef test 
+      while(!p_out); //wait for usb connection
+  #endif
 
+  if(GPS_EN){
     GPSSerial.begin(115200);
-    XBEESerial.begin(9600);
-    p_out.println("START");
-
-    //setup the ADC for ADXL
-    analogReadResolution(ADC_bits);
-    //setup i2c for AHT
-    // if(!aht.begin()){
-    //     p_out.print("Could not find AHT20");
-    // }
-
-    // if(!bno.begin()){
-    //     p_out.print("Could not find BNO");
-    //     while(1){}
-    // }
-    //GPS setup
     GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
     GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
     // Request updates on antenna status, comment out to keep quiet
     GPS.sendCommand(PGCMD_ANTENNA); 
-    pinMode(5, OUTPUT);
+  }
+  XBEESerial.begin(9600);
+  p_out.println("START");
+
+  //setup the ADC for ADXL
+  analogReadResolution(ADC_bits);
+  //setup i2c for AHT
+  if(!aht.begin() && AHT_EN){
+    p_out.print("Could not find AHT20");
+  }
+
+  if(!bno.begin() && BNO_EN){
+    p_out.print("Could not find BNO");
+    while(1){}
+  }
+  //GPS setup
+
+
+  pinMode(5, OUTPUT);
 
   delay(1000);
   p_out.println("End of setup");
@@ -325,4 +332,12 @@ void GPS_collect(void){
       p_out.print("Antenna status: "); p_out.println((int)GPS.antenna);
     }
   }
+}
+
+/**
+ * @brief Function to print all data out over the XBEE radio
+ * 
+ */
+void DATA_output(void){
+
 }
