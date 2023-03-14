@@ -114,8 +114,8 @@ void POW_watchdog(void);
 #define BNO_EN true
 #define GPS_EN true
 #define ADXL_EN true
-#define PGOOD XX 
-#define CHG XX
+#define PGOOD 19 
+#define CHG 18
 
 //mos control
 bool gps_power = true;
@@ -350,18 +350,18 @@ void DATA_output(bool enable){
  * 
  */
 
-int pGoodThresh = 50; //change variable when I figure out what it needs to be 
-int chgThresh = 30; //change variable when I figure out what it needs to be
+int pGoodThresh = 1024; //change variable when I figure out what it needs to be 
+int chgThresh = 1024; //change variable when I figure out what it needs to be
 void POW_watchdog(void){
 
-  if (analogRead(PGOOD) > pGoodThresh ){ 
+  if (analogRead(PGOOD) < pGoodThresh ){ 
     bool pGoodOut = true; 
   }
   else{
     bool pGoodOut = false; 
   }
 
-  if (analogRead(CHG) > chgThresh ){ 
+  if (analogRead(CHG) < chgThresh ){ 
     bool chgOut = true;  
   }
   else {
