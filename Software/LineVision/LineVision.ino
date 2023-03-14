@@ -346,16 +346,23 @@ void DATA_output(bool enable){
  * @brief Function to check the status of the charger
  * 
  */
+
+int pGoodThresh = 50; //change variable when I figure out what it needs to be 
+int chgThresh = 30; //change variable when I figure out what it needs to be
 void POW_watchdog(void){
 
-  int pGoodOut = analogRead(PGOOD); 
-  int chgOut = analogRead(CHG); 
+  if (analogRead(PGOOD) > pGoodThresh ){ 
+    bool pGoodOut = true; 
+  }
+  else{
+    bool pGoodOut = false; 
+  }
 
-  p_out.print("PGOOD = ");
-  p_out.print(pGoodOut);
-  p_out.print(", ");
+  if (analogRead(CHG) > chgThresh ){ 
+    bool chgOut = true;  
+  }
+  else {
+    bool chgOut = false; 
+  }
 
-  p_out.print("Charge = "); 
-  p_out.print(chgOut); 
-  delay(300000);
 }
