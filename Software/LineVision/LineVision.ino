@@ -108,16 +108,21 @@ void BNO_collect(bool enable); //collect orientation data from the BNO055 sensor
 
 void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
 
+void POW_watchdog(void); //this will check the status of the charge controller. 
 
 #define AHT_EN true
 #define BNO_EN true
 #define GPS_EN true
 #define ADXL_EN true
-\
+
 //mos control
 bool gps_power = true;
 bool bno_power = true;
 bool xbee_power = true;
+
+//Power data pins 
+#define PGOOD xx //to have an integer pin number
+#define CHG xx
 
 
 
@@ -340,4 +345,12 @@ void GPS_collect(bool enable, bool now){
  */
 void DATA_output(bool enable){
   //This funciton needs to package all of the data from sensors and put it onto the p_out serial port. 
+}
+
+/**
+ * @brief Function to check the status of the charger
+ * 
+ */
+void POW_watchdog(void){
+
 }
