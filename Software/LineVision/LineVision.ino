@@ -340,4 +340,20 @@ void GPS_collect(bool enable, bool now){
  */
 void DATA_output(bool enable){
   //This funciton needs to package all of the data from sensors and put it onto the p_out serial port. 
+<<<<<<< Updated upstream
+=======
+}
+
+/**
+ * @brief Function to check the status of the charger
+ * 
+ */
+void POW_watchdog(void){
+
+  int pGoodOut = digitalRead(PGOOD); 
+  int chgOut = digitalRead(CHG); 
+
+  
+
+>>>>>>> Stashed changes
 }
