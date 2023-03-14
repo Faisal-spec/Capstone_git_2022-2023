@@ -60,6 +60,13 @@
     #define p_out XBEESerial
 #endif
 
+struct gpsout{
+  int set;
+  int fix;
+  int fixq;
+  int lat;
+  int lon;
+}
 // Connect to the GPS on the hardware port
 Adafruit_GPS GPS(&GPSSerial);
 
@@ -274,55 +281,29 @@ void BNO_collect(bool enable){
  * @brief GPS_collect function for parsing GPS data
  * 
  */
-void GPS_collect(bool enable, bool now){
-      // read data from the GPS in the 'main loop'
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
-  if (GPSECHO)
-    if (c) p_out.print(c);
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) {
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences!
-    // so be very wary if using OUTPUT_ALLDATA and trying to print out data
-    p_out.print(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
-    if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
-      return; // we can fail to parse a sentence in which case we should just wait for another
-  }
-
-  // approximately every 2 seconds or so, print out the current stats
-  if (millis() - timer > 2000 && GPS.fix != 0) {
-    timer = millis(); // reset the timer
-    p_out.print("\nTime: ");
-    if (GPS.hour < 10) { p_out.print('0'); }
-    p_out.print(GPS.hour, DEC); p_out.print(':');
-    if (GPS.minute < 10) { p_out.print('0'); }
-    p_out.print(GPS.minute, DEC); p_out.print(':');
-    if (GPS.seconds < 10) { p_out.print('0'); }
-    p_out.print(GPS.seconds, DEC); p_out.print('.');
-    if (GPS.milliseconds < 10) {
-      p_out.print("00");
-    } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
-      p_out.print("0");
+void GPS_collect(bool enable, bool power){
+  if(enable == 1){
+    //float outs[3];
+    gpsout outss;
+    if(power == 1){
+      outss.set = 1;
+      if(GPS.fix){
+        //outs[0] = GPS.fix;
+        //outs[1] = GPS.fixquality;
+        //outs[2] = GPS.latitudeDegrees;
+        //outs[3] = GPS.longitudeDegrees;
+        outss.fix = GPS.fix;
+        outss.fixq = GPS.fixquality;
+        outss.lat = GPS.latitudeDegrees;
+        outss.lon = GPS.longitudeDegrees;
+      }
+      return outss;
     }
-    p_out.println(GPS.milliseconds);
-    p_out.print("Date: ");
-    p_out.print(GPS.day, DEC); p_out.print('/');
-    p_out.print(GPS.month, DEC); p_out.print("/20");
-    p_out.println(GPS.year, DEC);
-    p_out.print("Fix: "); p_out.print((int)GPS.fix);
-    p_out.print(" quality: "); p_out.println((int)GPS.fixquality);
-    if (GPS.fix) {
-      p_out.print("Location: ");
-      p_out.print(GPS.latitude, 4); p_out.print(GPS.lat);
-      p_out.print(", ");
-      p_out.print(GPS.longitude, 4); p_out.println(GPS.lon);
-      p_out.print("Speed (knots): "); p_out.println(GPS.speed);
-      p_out.print("Angle: "); p_out.println(GPS.angle);
-      p_out.print("Altitude: "); p_out.println(GPS.altitude);
-      p_out.print("Satellites: "); p_out.println((int)GPS.satellites);
-      p_out.print("Antenna status: "); p_out.println((int)GPS.antenna);
+    //power is not on so return previous GPS fix
+    if(outss.set = 1){
+      return outss;
     }
+    return -1;
   }
 }
 
