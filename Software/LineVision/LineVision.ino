@@ -60,6 +60,13 @@
     #define p_out XBEESerial
 #endif
 
+struct gpsout{
+  int set;
+  int fix;
+  int fixq;
+  int lat;
+  int lon;
+}
 // Connect to the GPS on the hardware port
 Adafruit_GPS GPS(&GPSSerial);
 
@@ -227,12 +234,17 @@ void loop(){
  */
 int AHT_collect(bool enable){
     long start = micros();
+    //int tempp[4];
+    //int hum[4];
+    float temp_1 = 0;
+    float hum_1 = 0;
+    ///
     sensors_event_t humidity, temp;
     bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    //*r_temp = temp.temperature;
-    //*r_humid = humidity.relative_humidity;
+    *r_temp = temp.temperature;
+    *r_humid = humidity.relative_humidity;
     long end = micros();
-    return end - start;
+    return temp_1,hum_1;
 }
 
 /**
@@ -287,8 +299,13 @@ void BNO_collect(bool enable, bool power){
 
   // velocity of sensor in the direction it's facing
   headingVel = ACCEL_VEL_TRANSITION * linearAccelData.acceleration.x / cos(DEG_2_RAD * orientationData.orientation.x);
+  //populating struct phase
+  bbo.head = orientationData.orientation.x; //populate struct with heading
+  bbo.speed = headingVel; //populate struct with speed
+  bbo.xpo = xPos; //populate struct with xPosition
+  bbo.ypo = yPos; //populate struct with yPosition
 
-  if (printCount * BNO055_SAMPLERATE_DELAY_MS >= PRINT_DELAY_MS) {
+ /* if (printCount * BNO055_SAMPLERATE_DELAY_MS >= PRINT_DELAY_MS) {
     //enough iterations have passed that we can print the latest data
     p_out.print("Heading: ");
     p_out.println(orientationData.orientation.x);
@@ -304,50 +321,37 @@ void BNO_collect(bool enable, bool power){
   }
   else {
     printCount = printCount + 1;
-  }
-
+  }*/
 
 
   while ((micros() - tStart) < (BNO055_SAMPLERATE_DELAY_MS * 1000))
   {
     //poll until the next sample is ready
   }
+  return bbo; //i am assuming we are returing the struct to print later.
 }
 
 /**
  * @brief GPS_collect function for parsing GPS data
  * 
  */
-void GPS_collect(bool enable, bool now){
-      // read data from the GPS in the 'main loop'
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
-  if (GPSECHO)
-    if (c) p_out.print(c);
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) {
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences!
-    // so be very wary if using OUTPUT_ALLDATA and trying to print out data
-    p_out.print(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
-    if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
-      return; // we can fail to parse a sentence in which case we should just wait for another
-  }
-
-  // approximately every 2 seconds or so, print out the current stats
-  if (millis() - timer > 2000 && GPS.fix != 0) {
-    timer = millis(); // reset the timer
-    p_out.print("\nTime: ");
-    if (GPS.hour < 10) { p_out.print('0'); }
-    p_out.print(GPS.hour, DEC); p_out.print(':');
-    if (GPS.minute < 10) { p_out.print('0'); }
-    p_out.print(GPS.minute, DEC); p_out.print(':');
-    if (GPS.seconds < 10) { p_out.print('0'); }
-    p_out.print(GPS.seconds, DEC); p_out.print('.');
-    if (GPS.milliseconds < 10) {
-      p_out.print("00");
-    } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
-      p_out.print("0");
+void GPS_collect(bool enable, bool power){
+  if(enable == 1){
+    //float outs[3];
+    gpsout outss;
+    if(power == 1){
+      outss.set = 1;
+      if(GPS.fix){
+        //outs[0] = GPS.fix;
+        //outs[1] = GPS.fixquality;
+        //outs[2] = GPS.latitudeDegrees;
+        //outs[3] = GPS.longitudeDegrees;
+        outss.fix = GPS.fix;
+        outss.fixq = GPS.fixquality;
+        outss.lat = GPS.latitudeDegrees;
+        outss.lon = GPS.longitudeDegrees;
+      }
+      return outss;
     }
     p_out.println(GPS.milliseconds);
     p_out.print("Date: ");
