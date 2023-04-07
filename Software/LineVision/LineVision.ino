@@ -149,9 +149,13 @@ void setup(void){
       while(!p_out); //wait for usb connection
   #endif
   if(XBEE_EN){
+    pinMode(XBEE_MOS, OUTPUT);
     digitalWrite(XBEE_MOS, HIGH); //this will turn the XBEE on before initialization 
   }
   if(GPS_EN){
+    pinMode(GPS_MOS, OUTPUT);
+    digitalWrite(GPS_MOS, HIGH);
+    delay(200);
     GPSSerial.begin(115200);
     GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
     GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
@@ -169,6 +173,8 @@ void setup(void){
   }
 
   if(!bno.begin() && BNO_EN){
+    pinMode(BNO_MOS, OUTPUT);
+    digitalWrite(BNO_MOS, HIGH);
     p_out.print("Could not find BNO");
     while(1){}
   }
