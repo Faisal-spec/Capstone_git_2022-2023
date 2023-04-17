@@ -1,389 +1,429 @@
 /**
  * @file LineVision.ino
  * @author Rylan Moore (rylan.moore@colorado.edu)
- * @brief 
- * @version 0.1
- * @date 2023-01-31
+ * @brief Final software for the LineVision companion system. 
+ * @version 1.0
+ * @date 2023-04-17
  * 
  * @copyright Copyright (c) 2023
  * 
  */
 
-/**
- * @note
- * Board config:
- * MattairTech MT-D21E revB
- * Print & String use auto-promoted
- * config.h diabled
- * Internal oscillator 
- * 732.4Hz
- * SAMD21E18A
- * 8KB_BOOTLOADER
- * TWO_UART_ONE_WIRE_ONE_SPI
- * CDC_ONLY
- */
-//TODO
-/*
- * Make a macro for selecting which sensors are enabled in code 
- * 
- * Add different states for setup and normal operation and timeout after a defined value
- * 
- * Setup a string format for sending data over the radio (called p_out)
- * 
- */
-
-/**
- * @brief
- * Defines below
-*/
 #include <Wire.h>
-#include <math.h>
+#include <Adafruit_BNO055.h>
+//#include <utility/imumaths.h>
+
+#include "Adafruit_ZeroFFT.h"
+//#include <math.h>
+#include <Adafruit_Sensor.h>
 #include <Adafruit_AHTX0.h>
 #include <Adafruit_GPS.h>
-#include <Adafruit_Sensor.h>
-#include "Adafruit_ZeroFFT.h"
-#include <Adafruit_BNO055.h>
-#include <string.h>
 
-//for testing hardware
-#define test
+#define GPSSerial Serial1 
+#define XBEE Serial2
 
+#define p_out Serial2
+#define acc_en false
 
-// Hardware UART layout. Serial0/serial is the native USB
-#define GPSSerial   Serial1
-#define XBEESerial  Serial2
+#define FFT_BUFFER_SIZE 10
+#define MAG_THRESHOLD 10
 
-#ifdef test //this will change the default output port based on if hardware testing is running with USB connected. 
-    #define p_out Serial
-#endif 
-#ifndef test
-    #define p_out XBEESerial
-#endif
-
-// Connect to the GPS on the hardware port
-Adafruit_GPS GPS(&GPSSerial);
-
-// Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
-// Set to 'true' if you want to debug and listen to the raw GPS sentences
 #define GPSECHO false
 
-uint32_t timer = millis();
-
-//Start the i2c and analog devices. 
-Adafruit_AHTX0 aht;
-
-double xPos = 0, yPos = 0, headingVel = 0;
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 10; //how often to read data from the board
-uint16_t PRINT_DELAY_MS = 500; // how often to print the data
-uint16_t printCount = 0; //counter to avoid printing every 10MS sample
-
-//velocity = accel*dt (dt in seconds)
-//position = 0.5*accel*dt^2
-double ACCEL_VEL_TRANSITION =  (double)(BNO055_SAMPLERATE_DELAY_MS) / 1000.0;
-double ACCEL_POS_TRANSITION = 0.5 * ACCEL_VEL_TRANSITION * ACCEL_VEL_TRANSITION;
-double DEG_2_RAD = 0.01745329251; //trig functions require radians, BNO055 outputs degrees
-
-// Check I2C device address and correct line below (by default address is 0x29 or 0x28)
-//                                   id, address
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
-
-#define X_in  2
+//digital pins
+#define X_in  2 //digital pins that the analog inputs are on
 #define Y_in  3
 #define Z_in  4
-#define ADC_bits 12
-#define N_samples 2048
-#define sample_rate 512
-float mg_mv = 1 / .553; //mG per step in the 12 bits
-//short ADXL_data[3][N_samples];
-q15_t mag_data[N_samples];
-
-//functions
-int ADXL_collect(bool enable); //Collect data from the ADXL and run fft
-
-int AHT_collect(bool enable); //Collect data from the AHT 
-
-void GPS_collect(bool enable, bool power); //collect data from the gps, have a tag that says if gps is running or not. Once per day.
-
-void BNO_collect(bool enable, bool power); //collect orientation data from the BNO055 sensor 
-
-void DATA_output(bool enable); //this function will output all packaged data over the raadio (p-out)
-
-void POW_watchdog(bool* power_good, bool* charge_good); //this will check the status of the charge controller. 
-
-#define AHT_EN true
-#define BNO_EN true
-#define GPS_EN true
-#define ADXL_EN true
-#define XBEE_EN true
-
-//mos control
-bool gps_power = true;
-bool bno_power = true;
-bool xbee_power = true;
-
-//Power data pins 
-#define PGOOD 19 //to have an integer pin number
-#define CHG 18
+#define V_ref 3
+#define ADC_bits 12 //SAMD21 ADC resolution
 
 //Power mos pins
 #define GPS_MOS 7
 #define BNO_MOS 8
 #define XBEE_MOS 6
 
+#define PGOOD 19
+#define CHARGE 18
 
+//stuff for fft
+#define N_samples 2048//4096
+#define sample_rate 1024
+
+// Connect to the GPS on the hardware port
+Adafruit_GPS GPS(&GPSSerial);
+Adafruit_BNO055 bno = Adafruit_BNO055(55);
+int IMU_delay = 100;
+Adafruit_AHTX0 aht;
+
+
+long timer = 0;
+long timer2 = 0;
+bool config = true;
+
+void check_rx_buffer();
+void collect_aht();
+void collect_imu();
+void collect_gps(bool setup);
+void collect_pwr();
+void collect_fft();
+void transmit_pkt();
 
 /**
- * @brief 
- * Code to setup all the sensors and communication devices
+ * @brief This struct will be used globally to store data from the sensors between functions and loops
+ * 
  */
-void setup(void){
-  Serial.begin(115200); //Start USB communication
-  #ifdef test 
-      while(!p_out); //wait for usb connection
-  #endif
-  if(XBEE_EN){
-    digitalWrite(XBEE_MOS, HIGH); //this will turn the XBEE on before initialization 
-  }
-  if(GPS_EN){
-    GPSSerial.begin(115200);
+struct sensor_data{
+    float gps_longitude;
+    char gps_long_char;
+    char gps_lat_char;
+    float gps_latitude;
+    float gps_elevation;
+    float aht_temp;
+    float imu_x;
+    float imu_y;
+    float imu_z;
+    bool bq_charge;
+    bool bq_power;
+    float fft_f[FFT_BUFFER_SIZE];
+    float fft_m[FFT_BUFFER_SIZE];
+};
+
+/**
+ * @brief This struct will be used to hold global statuses for the system. 
+ * 
+ */
+struct status{
+    bool setup;
+    int interval = 10; //default 10 minutes
+    char cmd_buf[10];
+    int timer;
+    int timer2;
+    int timer3;
+    int timer4;
+};
+
+// what's the name of the hardware p_out port?
+
+
+//420 mv / g 
+// +/- 2G is +/- 840mV around 2048
+float mg_mv = 1/.553; //constant for the accelerometer 
+int done = 0;
+int16_t mag_data_td[N_samples];
+q15_t mag_data[N_samples];
+// q15_t z_only[N_samples];
+int sample_time[N_samples];
+int last = 0;
+
+
+
+sensor_data smart; //declare the data node
+status control; //declare the control node
+
+/**
+ * @brief The setup function configures the ADC, enables high power devices, and starts communications 
+ * 
+ */
+void setup(){
+    analogReadResolution(12);
+
+    REG_ADC_REFCTRL = ADC_REFCTRL_REFSEL_INTVCC1; //set vref for ADC to VCC
+    // Average control 1 sample, no right-shift
+    REG_ADC_AVGCTRL |= ADC_AVGCTRL_SAMPLENUM_1;
+    // Sampling time, no extra sampling half clock-cycles
+    REG_ADC_SAMPCTRL = ADC_SAMPCTRL_SAMPLEN(0);
+    ADC->CTRLA.reg |= ADC_CTRLA_ENABLE; //set ADC to run in standby
+
+    Serial.begin(115200);
+    pinMode(GPS_MOS, OUTPUT);
+    pinMode(XBEE_MOS,OUTPUT);
+    pinMode(BNO_MOS, OUTPUT);
+    pinMode(CHARGE,INPUT); //for charge
+    pinMode(PGOOD,INPUT); //for pgood 
+    digitalWrite(GPS_MOS, HIGH);
+    digitalWrite(XBEE_MOS, HIGH);
+    digitalWrite(BNO_MOS, HIGH);
+    delay(200);
+    GPS.begin(9600);
+    XBEE.begin(115200);
+    pinMode(5, OUTPUT);
+    //Serial.println("IMU Unity test"); Serial.println("");
+    //Init sensor
+
+    //XBEE.println("Hello");  
+    // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
     GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+    // uncomment this line to turn on only the "minimum recommended" data
+    //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+    // For parsing data, we don't suggest using anything but either RMC only or RMC+GGA since
+    // the parser doesn't care about other sentences at this time
+    // Set the update rate
     GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
+    // For the parsing code to work nicely and have time to sort thru the data, and
+    // print it out we don't suggest using anything higher than 1 Hz
+
     // Request updates on antenna status, comment out to keep quiet
-    GPS.sendCommand(PGCMD_ANTENNA); 
-  }
-  XBEESerial.begin(9600);
-  p_out.println("START");
+    GPS.sendCommand(PGCMD_ANTENNA);
 
-  //setup the ADC for ADXL
-  analogReadResolution(ADC_bits);
-  //setup i2c for AHT
-  if(!aht.begin() && AHT_EN){
-    p_out.print("Could not find AHT20");
-  }
+    delay(1000);
 
-  if(!bno.begin() && BNO_EN){
-    p_out.print("Could not find BNO");
-    while(1){}
-  }
-  //GPS setup
+    // Ask for firmware version
+    GPSSerial.println(PMTK_Q_RELEASE);
 
-
-  pinMode(5, OUTPUT);
-
-  delay(1000);
-  p_out.println("End of setup");
-
-
-
+    if(!aht.begin()){
+        while(1);
+    }
+    if(!bno.begin()){
+        while(1);
+    }
+    XBEE.println("END of setup");    
 }
 
 /**
- * @brief 
+ * @brief The loop function holds all info on the state of the system and calls all of the individual sensors in sub routines. 
  * 
  */
 void loop(){
-  //need to read if there is input over the radio, 
-  String in; //used for serial input
-  if (p_out.available()){
-    in = p_out.read(); //this will contain commands. 
-  }
-  else{
-    in = "";
-  }
+    //check_rx_buffer();
+    if(config || millis() - timer < 2000000){
+        if (config){ //on the first run of the loop
+            timer = millis();
+        }
+        digitalWrite(XBEE_MOS, HIGH);
+        digitalWrite(GPS_MOS, HIGH);
+        digitalWrite(BNO_MOS, HIGH);
+        config = false;
+        collect_aht(); //bad
+        collect_imu(); //ok
+        collect_pwr(); //ok
+        if(millis() - control.timer4 > 200){
+            transmit_pkt();
+            control.timer4 = millis();
+        }
 
+    }
+    if(millis() - timer > 2000000 && smart.gps_longitude == 0){
+       // while(smart.gps_longitude == 0.0){
+        collect_gps(1);
+        //if(millis() - control.timer4 > 200){
+            transmit_pkt();
+        //     control.timer4 = millis();
+        // }
+        
+    }
 
-  if(in == ""){ //this is the main loop that will run most of the time. 
-    ADXL_collect(ADXL_EN);
-    AHT_collect(AHT_EN);
-    BNO_collect(BNO_EN, bno_power);
-    GPS_collect(GPS_EN, gps_power);
-  }
-  else if(in == "SETUP"){
-
-  }
-  else{
-    p_out.write("Critical exception");
-    while(1);
-  }
-  ADXL_collect(ADXL_EN);
-  AHT_collect(AHT_EN);
-  BNO_collect(BNO_EN, bno_power);
-  //GPS_collect(GPS_EN, /*Need to add the boolean for powering gps based on time*/);
-  
-
-
-  digitalWrite(5, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);                       // wait for a second
-  digitalWrite(5, LOW);    // turn the LED off by making the voltage LOW
-  delay(1000);                       // wait for a second
+    else if ((millis() - timer2) > control.interval*60*1000 && false){
+        digitalWrite(BNO_MOS, HIGH);
+        digitalWrite(GPS_MOS, HIGH);
+        collect_aht();
+        collect_imu();
+        collect_gps(0);
+        collect_pwr();
+        collect_fft();
+        transmit_pkt();
+        digitalWrite(GPS_MOS, LOW);
+        digitalWrite(BNO_MOS, LOW);
+        timer2 = millis();
+    }
 }
 
 /**
- * @brief Get_temp function for AHT 
+ * @brief check_rx_buffer checks to see if any external commands have come into the system over the radio that need to be processed. 
  * 
- * @param r_temp 
- * @param r_humid 
- * @return int 
  */
-int AHT_collect(bool enable){
-    long start = micros();
+void check_rx_buffer(){
+
+}
+
+/**
+ * @brief collect_aht asks the AHT20 for a new datapoint that is then stored in the storage struct. 
+ * 
+ */
+void collect_aht(){
     sensors_event_t humidity, temp;
-    bool ret = aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
-    //*r_temp = temp.temperature;
-    //*r_humid = humidity.relative_humidity;
-    long end = micros();
-    return end - start;
+    aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
+    smart.aht_temp = temp.temperature;
+    //XBEE.print(temp.temperature); XBEE.print(";");
+    return;
 }
 
 /**
- * @brief ADXL_collect function for ADXL327
+ * @brief collect_imu asks the BNO055 for a new datapoint on the absolute orientation. This data is then converted to an Euler vector and stored. 
  * 
- * @param num_samples 
- * @param sample_rate 
- * @return int 
  */
-int ADXL_collect(bool enable){
-  Serial.println("ADXL data");
-  int start = micros(); //take start time for analysis
-  int ref = 2048;
-  int delay_us = 1000000 / sample_rate; //number of us between samples to align the data
-  int32_t dp[3] = {0,0,0};
-  for(int i = 0; i < N_samples; i++){ //fill the entire data array
-      int current = micros();
-      while(micros() - current < delay_us){} //collect data at the proper sampling rate 
-      for(int j = 0; j<3; j++){
-          dp[0] += analogRead(X_in);
-          dp[1] += analogRead(Y_in);
-          dp[2] += analogRead(Z_in);
-      }
-      for(int j = 0; j<3; j++){
-          dp[j] = dp[j] / 3;
-      }
+void collect_imu(){
+    imu::Quaternion quat = bno.getQuat();
 
-      mag_data[i] = int16_t (ref - sqrt(sq(dp[0])+sq(dp[1])+sq(dp[2])));
-  }
+    double sqw = quat.w() * quat.w();
+    double sqx = quat.x() * quat.x();
+    double sqy = quat.y() * quat.y();
+    double sqz = quat.z() * quat.z();
+
+    double _x = quat.x();
+    double _y = quat.y();
+    double _z = quat.z();
+    double _w = quat.w();
+
+    smart.imu_x = 57.3* atan2(2.0 * (_x * _y + _z * _w), (sqx - sqy - sqz + sqw));
+    smart.imu_y  = 57.3* asin(-2.0 * (_x * _z - _y * _w) / (sqx + sqy + sqz + sqw));
+    smart.imu_z = 57.3* atan2(2.0 * (_y * _z + _x * _w), (-sqx - sqy + sqz + sqw));
+
+    return;
+}
+
+/**
+ * @brief The collect_gps function collects NEMA sentences from the GPS for long enough that the GPS location can be parsed and stored in the data struct.
+ * 
+ * @param setup 
+ */
+void collect_gps(bool setup){
+    // if you want to debug, this is a good time to do it!
+//     for(int i = 0; i<7; i++){
+//         GPS.read();
+//     }
+//   // if you want to debug, this is a good time to do it!
+// //   if (GPSECHO)
+//     // if (c) p_out.print(c);
+//   // if a sentence is received, we can check the checksum, parse it...
+//   if (GPS.newNMEAreceived()) {
+//     // a tricky thing here is if we print the NMEA sentence, or data
+//     // we end up not listening and catching other sentences!
+//     // so be very wary if using OUTPUT_ALLDATA and trying to print out data
+//     //XBEE.println(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
+//     if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
+//       return; // we can fail to parse a sentence in which case we should just wait for another
+//   }
+    while(!GPS.fix){
+        GPS.read();
+        if (GPS.newNMEAreceived()) {
+        // a tricky thing here is if we print the NMEA sentence, or data
+        // we end up not listening and catching other sentences!
+        // so be very wary if using OUTPUT_ALLDATA and trying to print out data
+        //p_out.print(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
+        if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
+            return; // we can fail to parse a sentence in which case we should just wait for another
+        }
+    }
+     
+
     
-  // for(int i = 0; i<N_samples; i++){
-  //     mag_data[i] = sqrt((ADXL_data[0][i])^2+(ADXL_data[1][i])^2+(ADXL_data[2][i])^2);
-  // }
-  ZeroFFT(mag_data, N_samples);
-  return micros() - start;
-}
-
-
-/**
- * @brief 
- * 
- */
-void BNO_collect(bool enable, bool power){
-  unsigned long tStart = micros();
-  sensors_event_t orientationData , linearAccelData;
-  bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-  //  bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-  bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-
-  xPos = xPos + ACCEL_POS_TRANSITION * linearAccelData.acceleration.x;
-  yPos = yPos + ACCEL_POS_TRANSITION * linearAccelData.acceleration.y;
-
-  // velocity of sensor in the direction it's facing
-  headingVel = ACCEL_VEL_TRANSITION * linearAccelData.acceleration.x / cos(DEG_2_RAD * orientationData.orientation.x);
-
-  if (printCount * BNO055_SAMPLERATE_DELAY_MS >= PRINT_DELAY_MS) {
-    //enough iterations have passed that we can print the latest data
-    p_out.print("Heading: ");
-    p_out.println(orientationData.orientation.x);
-    p_out.print("Position: ");
-    p_out.print(xPos);
-    p_out.print(" , ");
-    p_out.println(yPos);
-    p_out.print("Speed: ");
-    p_out.println(headingVel);
-    p_out.println("-------");
-
-    printCount = 0;
-  }
-  else {
-    printCount = printCount + 1;
-  }
-
-
-
-  while ((micros() - tStart) < (BNO055_SAMPLERATE_DELAY_MS * 1000))
-  {
-    //poll until the next sample is ready
-  }
-}
-
-/**
- * @brief GPS_collect function for parsing GPS data
- * 
- */
-void GPS_collect(bool enable, bool now){
-      // read data from the GPS in the 'main loop'
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
-  if (GPSECHO)
-    if (c) p_out.print(c);
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) {
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences!
-    // so be very wary if using OUTPUT_ALLDATA and trying to print out data
-    p_out.print(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
-    if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
-      return; // we can fail to parse a sentence in which case we should just wait for another
-  }
-
-  // approximately every 2 seconds or so, print out the current stats
-  if (millis() - timer > 2000 && GPS.fix != 0) {
-    timer = millis(); // reset the timer
-    p_out.print("\nTime: ");
-    if (GPS.hour < 10) { p_out.print('0'); }
-    p_out.print(GPS.hour, DEC); p_out.print(':');
-    if (GPS.minute < 10) { p_out.print('0'); }
-    p_out.print(GPS.minute, DEC); p_out.print(':');
-    if (GPS.seconds < 10) { p_out.print('0'); }
-    p_out.print(GPS.seconds, DEC); p_out.print('.');
-    if (GPS.milliseconds < 10) {
-      p_out.print("00");
-    } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
-      p_out.print("0");
+    // approximately every 2 seconds or so, print out the current stats
+    if (millis() - control.timer3 > 2000) {
+        control.timer3 = millis();
+        // XBEE.print("LOng:");
+        // XBEE.println(GPS.longitude);
+        smart.gps_latitude = GPS.seconds;//GPS.latitudeDegrees;
+        smart.gps_long_char = GPS.lon;
+        smart.gps_lat_char = GPS.lat;
+        smart.gps_longitude = GPS.longitudeDegrees;
+        smart.gps_elevation = GPS.altitude;
     }
-    p_out.println(GPS.milliseconds);
-    p_out.print("Date: ");
-    p_out.print(GPS.day, DEC); p_out.print('/');
-    p_out.print(GPS.month, DEC); p_out.print("/20");
-    p_out.println(GPS.year, DEC);
-    p_out.print("Fix: "); p_out.print((int)GPS.fix);
-    p_out.print(" quality: "); p_out.println((int)GPS.fixquality);
-    if (GPS.fix) {
-      p_out.print("Location: ");
-      p_out.print(GPS.latitude, 4); p_out.print(GPS.lat);
-      p_out.print(", ");
-      p_out.print(GPS.longitude, 4); p_out.println(GPS.lon);
-      p_out.print("Speed (knots): "); p_out.println(GPS.speed);
-      p_out.print("Angle: "); p_out.println(GPS.angle);
-      p_out.print("Altitude: "); p_out.println(GPS.altitude);
-      p_out.print("Satellites: "); p_out.println((int)GPS.satellites);
-      p_out.print("Antenna status: "); p_out.println((int)GPS.antenna);
-    }
+    return;
+}
+
+/**
+ * @brief collect_pwr checks the two status pins on the charge controller and sets them to the data struct. These are digital singals. 
+ * 
+ */
+void collect_pwr(){
+  if (!digitalRead(CHARGE)){ //charge 
+    smart.bq_charge = true;
+  }
+  else{
+    smart.bq_charge = false;
+  }
+
+  if(!digitalRead(PGOOD)){ //pgood
+    smart.bq_power = true;
+  }
+  else{
+    smart.bq_power = false;
   }
 }
 
-
-
 /**
- * @brief Function to print all data out over the XBEE radio
+ * @brief collect_fft begins the process of collecting data from the ADXL327. The data is then run through the fft funciton and the output is loaded into 
+ * the data struct, with peak frequencies and magnitudes. 
  * 
  */
-void DATA_output(bool enable){
-  //This funciton needs to package all of the data from sensors and put it onto the p_out serial port. 
+void collect_fft(){
+    int start = micros(); //take start time for analysis
+    int16_t ref;
+    int32_t dp [3] = {0,0,0};
+    int delay_us = 1000000 / sample_rate; //number of us between samples to align the data
+    for(int i = 0; i < N_samples; i++){ //fill the entire data array
+        int current = micros();
+        while(micros() - current < delay_us){} //collect data at the proper sampling rate 
+        ref = 2048;//analogRead(V_ref) / 2; //This collects the center voltage
+        int avg_curr = micros();
+        for(int j = 0; j<3; j++){
+            dp[0] += analogRead(X_in);
+            dp[1] += analogRead(Y_in);
+            dp[2] += analogRead(Z_in);
+        }
+        sample_time[i] = micros() - avg_curr; //this shows how long data collection off the pins takes 9 samples
+        // z_only[i] = ref - (dp[2] / 3);
+        for(int j = 0; j<3; j++){
+            dp[j] = dp[j] / 3;
+        }
+
+        mag_data[i] = int16_t (ref - sqrt(sq(dp[0])+sq(dp[1])+sq(dp[2])));
+        mag_data_td[i] = mag_data[i];
+    }
+    
+    // for(int i = 0; i<N_samples; i++){
+    //     mag_data[i] = sqrt((ADXL_data[0][i])^2+(ADXL_data[1][i])^2+(ADXL_data[2][i])^2);
+    // }
+    ZeroFFT(mag_data, N_samples);
+    // ZeroFFT(z_only, N_samples);
+    long tt = micros() - start;
+
+    int current_buffer_index = 0;
+    for(int i=2; i<N_samples/2; i++){
+        if(mag_data[i] > MAG_THRESHOLD && current_buffer_index < FFT_BUFFER_SIZE){
+            //print the frequency
+            //Serial2.print(FFT_BIN(i, sample_rate, N_samples));
+            smart.fft_f[current_buffer_index] = FFT_BIN(i, sample_rate, N_samples);
+            //Serial.print(" Hz, Magnitude: ");
+            //Serial2.print(",");
+            //print the corresponding FFT output
+            // Serial2.print(mag_data[i] * mg_mv);
+            smart.fft_m[current_buffer_index] = mag_data[i] * mg_mv;
+            // Serial2.print(",");
+            // Serial2.print(z_only[i] * mg_mv);
+            // Serial2.print(",");
+            // Serial2.println(mag_data_td[i]);
+            current_buffer_index++;
+        }
+
+    }
 }
 
 /**
- * @brief Function to check the status of the charger
+ * @brief transmit_pkt takes all of the data from the data struct and prints it out over the XBEE in the format for the Unity simulation. 
  * 
  */
-void POW_watchdog(bool* power_good, bool* charge_good){
+void transmit_pkt(){
+    XBEE.print(smart.imu_x);
+    XBEE.print(F(", "));
+    XBEE.print(smart.imu_y);
+    XBEE.print(F(", "));
+    XBEE.print(smart.imu_z);
+    XBEE.print(F(";"));
+    XBEE.print(smart.aht_temp); XBEE.print(";");
+    for(int i =0; i< FFT_BUFFER_SIZE; i++){
+        if(smart.fft_f[i] > 0){
+            XBEE.print(smart.fft_f[i]); XBEE.print('-'); XBEE.print(smart.fft_m[i]); XBEE.print(',');
+        }
+    }
+//fft print
+    XBEE.print(";"); //end of the fft part of data output. 
 
+    XBEE.print(smart.gps_latitude, 4); XBEE.print(smart.gps_lat_char); XBEE.print(","); 
+    XBEE.print(smart.gps_longitude, 4); XBEE.print(smart.gps_long_char); XBEE.print(",");
+    XBEE.print(smart.gps_elevation, 4); XBEE.print(" Meters;");
+
+    XBEE.print(smart.bq_charge);
+    XBEE.print(';');
+    XBEE.println(smart.bq_power);
 }
